@@ -309,6 +309,8 @@ docker compose exec apps bash /apps/start_simulators.sh
 
 Your consumer will create `deliveries-live` and `courier-locations` the moment it writes the first document. If no template exists then, Elasticsearch guesses the field types and the map in Part 3 will not work. So **do Part 3.1 now** (create templates B, C, D from `part3_elk/mappings.http`), then come back here. Section 3.1 explains why.
 
+> **Stuck, or an index was created before its template?** Load the solution templates in one go with `docker compose exec apps python /solution/part3_elk/apply_templates.py`, then delete the wrong index in Dev Tools (`DELETE courier-locations`). The consumer re-creates it with the right types on its next write.
+
 ### 2.1 Look at the topics from inside the broker (10 min)
 
 The Kafka CLI tools live in `/opt/kafka/bin` inside the `course-kafka` container.

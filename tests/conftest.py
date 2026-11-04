@@ -79,3 +79,10 @@ def seed_module():
 @pytest.fixture(scope="session")
 def seed_docs(seed_module):
     return seed_module.build_docs()
+
+
+def pytest_configure(config):
+    # Registered here as well as in pytest.ini: inside the apps container the tests run from
+    # /tests, where the repo-root pytest.ini is not visible.
+    config.addinivalue_line("markers", "part5: needs the Part 5 chaos fixes")
+    config.addinivalue_line("markers", "mongo: needs a running MongoDB (MONGO_URI)")
