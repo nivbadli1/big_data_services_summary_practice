@@ -18,16 +18,23 @@ Docker image registries were **blocked** in the build sandbox (`docker pull` -> 
 | chaos.py | all modes run against a fake Kafka | `duplicates` re-sends 300 events; flags written / reset |
 | Student skeletons | tests with `--target=student` | they fail as expected (TODOs), they do not crash |
 
-## UNTESTED - run once on a real machine before giving it to students
+## Verified on a real machine (Niv, MacBook, Docker Desktop, 4 Nov 2026)
 
-1. **`docker compose up -d --build` end to end** on an 8 GB laptop (Mac + Windows/WSL2 ideally): all healthchecks go healthy, the memory limits are enough, and the start order works.
-2. **Kafka KRaft config** of `apache/kafka:3.8.1` (env vars, `CLUSTER_ID`, `/opt/kafka/bin` paths in the handout, healthcheck command), and topic auto-creation by the order-app admin client.
-3. **Airflow container**: the Dockerfile build (pip + constraints URL), `airflow standalone` with the SQLite volume `/opt/airflow/db` (permissions for UID 50000), the `airflow/airflow` user creation, `/health` healthcheck, the `./output` bind-mount being writable by UID 50000 (on Linux hosts you may need `chmod 777 output` or an `.env` with `AIRFLOW_UID=$(id -u)`).
-4. **Real Elasticsearch / Kibana 8.15.3**: the index templates in `mappings.http`, `helpers.bulk` upserts, `update_by_query` (late refresh), the geo_point map, every DSL query, and all Kibana click paths in the handout and `solution/part3_dashboard_steps.md` (Lens formulas, Maps layer, panel custom time range). Kibana menu names were written from memory of 8.x.
-5. **Live numbers** in the handout (doc counts per minute, ~1-2% error rate, LAG, console-consumer output shape) are estimates from the simulation, not measured on the real stack.
-6. Real kafka-python 2.2.15 against the broker: `consumer.commit()`, the `chaos.py duplicates` seek/replay, consumer-group describe output.
-7. The order-app's refusal to start without the `app-logs` template (`exists_index_template`).
-8. The Mongo healthcheck replica-set init (copied from the cde_mongodb lesson, which was tested there).
+- `docker compose up -d --build`: all services healthy (after removing leftover containers from earlier lessons and freeing port 8080).
+- Airflow image build (after dropping the remote constraints URL), `airflow standalone`, `./output` writable on Mac.
+- Seed: 500 orders + 20 restaurants. `solution/part1_mongo/explore.js` output matches every expected count (late 117, bonus index 88, top dishes).
+- `pytest /tests --target=solution` in the apps container: 65 passed, 1 skipped.
+- Index templates (also via `solution/part3_elk/apply_templates.py`), `courier-locations.location` = `geo_point`.
+- Order-app refuses to start without the `app-logs` template, then starts once it exists.
+- Consumer: reads both topics, upserts `deliveries-live` and `courier-locations`, late refresh marks open orders, resumes from committed offsets after being stopped (LAG back to 0), `chaos.py duplicates` -> 23 duplicates skipped.
+- DAG (`airflow dags test`): first run 500 -> 462 clean / 38 quarantined, payouts 290, fees 274, 30 daily-summary docs; student skeleton runs end to end without crashing; incremental run after `chaos.py drift` picks up only changed orders (177) and the solution handles v3 (`bad_total` 0).
+- `chaos.py errors`, `late`, `drift` run; v3 orders appear in Mongo (`payment.amount`).
+
+## Still UNTESTED
+
+1. Kibana click paths in the handout and `solution/part3_dashboard_steps.md` (Lens, Maps layer, menu names) - walk through them once in the browser.
+2. Windows / WSL2 and Linux hosts (Linux may need `chmod 777 output`).
+3. Live-rate numbers in the handout (events per minute, error rate) are estimates.
 
 ## How to re-run the automated checks
 

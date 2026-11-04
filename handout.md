@@ -354,6 +354,8 @@ Nothing yet. Your consumer will create the group `quickbite-live`. Remember this
 docker compose exec apps python /apps/consumer/consumer.py
 ```
 
+> **Use a separate terminal tab for the consumer** and leave it running there. It runs in the foreground; if you type other commands in the same tab you stop it, and nothing new reaches Elasticsearch (Kafka keeps the events - restart it and it catches up from its committed offset).
+
 It runs, reads `order.events` and prints counts, but writes nothing. Stop it (Ctrl+C) and do **TODO 2.3** (the `KafkaConsumer(...)` call in `main()`):
 
 | Setting | Value | Why |
