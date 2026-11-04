@@ -82,7 +82,7 @@ flowchart LR
 
 **Conventions**
 
-- `$` lines run on **your laptop** in the repo folder. Lines inside a ```` ```javascript ```` block run in **mongosh**. Kibana requests run in **Kibana -> Dev Tools**.
+- Lines in a ```` ```bash ```` block run in a terminal on **your laptop**, in the repo folder. Copy them one block at a time. Lines inside a ```` ```javascript ```` block run in **mongosh**. Kibana requests run in **Kibana -> Dev Tools**.
 - All code runs **inside containers**, so you install nothing on your laptop except Docker.
 - Expected numbers come from a **deterministic** dataset (fixed random seed). **Numbers in Part 1 and Part 4.6 must match exactly.** Live numbers (simulators) are different for everybody: there you get a range.
 
@@ -166,7 +166,7 @@ The order-app writes its logs **directly into Elasticsearch** (no Logstash). Bef
 1. Open **Kibana -> ☰ menu -> Management -> Dev Tools**.
 2. Open `part3_elk/mappings.http` in your editor, copy **section A** (`PUT _index_template/app-logs` and its JSON body) into the console and run it (▶ button or Ctrl/Cmd+Enter).
    ✅ `{ "acknowledged": true }`
-3. Start the simulators:
+3. Start the simulators. **Recommended order:** do Part 1 first (simulators off, exact numbers), then start them here before Part 2.
 
 ```bash
 docker compose exec apps bash /apps/start_simulators.sh
