@@ -34,7 +34,9 @@ from airflow.operators.python import BranchPythonOperator, PythonOperator
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import quickbite_transform as qt  # noqa: E402
 
-MONGO_URI = os.getenv("MONGO_URI", "mongodb://mongo:27017")
+# readPreference=secondaryPreferred: a batch job must not compete with the app on the primary.
+# In production this points at a dedicated analytics secondary (or you use CDC instead - Appendix A).
+MONGO_URI = os.getenv("MONGO_URI", "mongodb://mongo:27017/?directConnection=true&readPreference=secondaryPreferred")
 ES_URL = os.getenv("ES_URL", "http://elasticsearch:9200")
 OUTPUT_DIR = os.getenv("QUICKBITE_OUTPUT", "/opt/airflow/output")
 
