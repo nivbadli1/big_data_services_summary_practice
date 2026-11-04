@@ -1,5 +1,7 @@
 # Part 3.4 - Building the "QuickBite Ops" dashboard, step by step
 
+> Written for Kibana 8.15. If a menu or button name looks slightly different on your screen, pick the closest match - the steps and the result are the same.
+
 Written for **Kibana 8.15**. Menu names can move slightly between 8.x versions; the ideas are the same.
 Before you start: the 4 data views from handout Part 3.3 exist, the consumer is running.
 
