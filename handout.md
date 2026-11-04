@@ -101,9 +101,11 @@ flowchart LR
 
 ### 0.2 Start everything
 
+> **Mac users (zsh):** run `setopt interactivecomments` once in your terminal. Some commands below end with `# expected result`, and without this setting zsh treats `#` as part of the command.
+
 ```bash
-$ docker compose up -d --build
-$ docker compose ps
+docker compose up -d --build
+docker compose ps
 ```
 
 The first start downloads ~4 GB and builds two small images: **5-10 minutes**. Run `docker compose ps` every minute until all 6 services show **(healthy)**. `kibana` and `airflow` are the slowest (2-3 minutes after the others).
@@ -133,10 +135,10 @@ mongo           Up 4 minutes (healthy)
 ### 0.3 Check each service once
 
 ```bash
-$ curl -s localhost:9200 | grep number          # "number" : "8.15.3"
-$ docker exec mongo mongosh --quiet --eval 'rs.status().members[0].stateStr'     # PRIMARY
-$ docker exec course-kafka /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list     # (empty - fine)
-$ docker compose exec apps python -c "import kafka, elasticsearch, pymongo, pandas; print('apps OK')"
+curl -s localhost:9200 | grep number          # "number" : "8.15.3"
+docker exec mongo mongosh --quiet --eval 'rs.status().members[0].stateStr'     # PRIMARY
+docker exec course-kafka /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list     # (empty - fine)
+docker compose exec apps python -c "import kafka, elasticsearch, pymongo, pandas; print('apps OK')"
 ```
 
 > Windows: no `grep`? Just open http://localhost:9200 in the browser.
@@ -144,7 +146,7 @@ $ docker compose exec apps python -c "import kafka, elasticsearch, pymongo, pand
 ### 0.4 Load the historical orders
 
 ```bash
-$ docker compose exec apps python /seed/seed_orders.py
+docker compose exec apps python /seed/seed_orders.py
 ```
 
 ✅ **checkpoint:**
@@ -166,7 +168,7 @@ The order-app writes its logs **directly into Elasticsearch** (no Logstash). Bef
 3. Start the simulators:
 
 ```bash
-$ docker compose exec apps bash /apps/start_simulators.sh
+docker compose exec apps bash /apps/start_simulators.sh
 ```
 
 ✅ **checkpoint** (ids and names differ, the shape is what counts):
@@ -200,9 +202,9 @@ Watch them live in a second terminal any time with `docker compose exec apps tai
 Stop the simulators and re-seed so your numbers match:
 
 ```bash
-$ docker compose exec apps bash /apps/stop_simulators.sh
-$ docker compose exec apps python /seed/seed_orders.py
-$ docker exec -it mongo mongosh quickbite
+docker compose exec apps bash /apps/stop_simulators.sh
+docker compose exec apps python /seed/seed_orders.py
+docker exec -it mongo mongosh quickbite
 ```
 
 ### 1.1 First five minutes (5 min)
@@ -291,7 +293,7 @@ The DAG will run `find({updated_at: {$gt: <watermark>}})` every hour. Follow the
 
 **Now restart the simulators** for the next parts:
 ```bash
-$ docker compose exec apps bash /apps/start_simulators.sh
+docker compose exec apps bash /apps/start_simulators.sh
 ```
 
 ---
@@ -312,8 +314,8 @@ Your consumer will create `deliveries-live` and `courier-locations` the moment i
 The Kafka CLI tools live in `/opt/kafka/bin` inside the `course-kafka` container.
 
 ```bash
-$ docker exec course-kafka /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list
-$ docker exec course-kafka /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --describe --topic order.events
+docker exec course-kafka /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list
+docker exec course-kafka /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --describe --topic order.events
 ```
 
 ✅ **checkpoint:** the list shows `__consumer_offsets`, `courier.locations`, `order.events` (`__consumer_offsets` shows up after the first consumer group). `--describe` shows **PartitionCount: 3**, ReplicationFactor 1, Leader 1 for partitions 0, 1, 2.
@@ -321,7 +323,7 @@ $ docker exec course-kafka /opt/kafka/bin/kafka-topics.sh --bootstrap-server loc
 Read a few messages with the console consumer, **with keys**:
 
 ```bash
-$ docker exec -it course-kafka /opt/kafka/bin/kafka-console-consumer.sh \
+docker exec -it course-kafka /opt/kafka/bin/kafka-console-consumer.sh \
     --bootstrap-server localhost:9092 --topic order.events --from-beginning --max-messages 5 \
     --property print.key=true --property print.partition=true
 ```
@@ -339,14 +341,14 @@ Answer for yourself:
 ### 2.2 Consumer groups and lag (5 min)
 
 ```bash
-$ docker exec course-kafka /opt/kafka/bin/kafka-consumer-groups.sh --bootstrap-server localhost:9092 --list
+docker exec course-kafka /opt/kafka/bin/kafka-consumer-groups.sh --bootstrap-server localhost:9092 --list
 ```
 Nothing yet. Your consumer will create the group `quickbite-live`. Remember this command; you will use it in 2.8.
 
 ### 2.3 Run the skeleton and configure the consumer (10 min)
 
 ```bash
-$ docker compose exec apps python /apps/consumer/consumer.py
+docker compose exec apps python /apps/consumer/consumer.py
 ```
 
 It runs, reads `order.events` and prints counts, but writes nothing. Stop it (Ctrl+C) and do **TODO 2.3** (the `KafkaConsumer(...)` call in `main()`):
@@ -366,7 +368,7 @@ Kafka gives you **at-least-once** delivery: after a crash or a producer retry yo
 
 Test it without Kafka (quick feedback loop - use it for 2.4-2.7):
 ```bash
-$ docker compose exec apps pytest -q /tests/test_consumer.py --target=student -k seen
+docker compose exec apps pytest -q /tests/test_consumer.py --target=student -k seen
 ```
 ✅ **checkpoint:** `2 passed, 14 deselected`
 
@@ -375,7 +377,7 @@ $ docker compose exec apps pytest -q /tests/test_consumer.py --target=student -k
 Do **TODO 2.5** (`compute_is_late`). The rule is in the docstring.
 
 ```bash
-$ docker compose exec apps pytest -q /tests/test_consumer.py --target=student -k is_late
+docker compose exec apps pytest -q /tests/test_consumer.py --target=student -k is_late
 ```
 ✅ **checkpoint:** `8 passed, 8 deselected`
 
@@ -392,7 +394,7 @@ Do **TODO 2.6** (`delivery_action`). An order produces 4-5 events (created, acce
 Do **TODO 2.7** (`courier_action`): `_id = courier_id` (keep only the latest position of each of the 30 couriers), and `location` as `{"lat": ..., "lon": ...}`.
 
 ```bash
-$ docker compose exec apps pytest -q /tests/test_consumer.py --target=student -m "not part5"
+docker compose exec apps pytest -q /tests/test_consumer.py --target=student -m "not part5"
 ```
 ✅ **checkpoint:** `15 passed, 1 deselected` (the deselected one is for Part 5).
 
@@ -404,7 +406,7 @@ Do **TODO 2.8**: `helpers.bulk(es, actions, raise_on_error=True)` and **after it
 
 Run it and leave it running in its own terminal for the rest of the exercise:
 ```bash
-$ docker compose exec apps python /apps/consumer/consumer.py
+docker compose exec apps python /apps/consumer/consumer.py
 ```
 
 ✅ **checkpoint** (after ~1 minute):
@@ -413,8 +415,8 @@ $ docker compose exec apps python /apps/consumer/consumer.py
 ```
 In another terminal:
 ```bash
-$ curl -s "localhost:9200/_cat/indices/deliveries-live,courier-locations?v&h=index,docs.count"
-$ docker exec course-kafka /opt/kafka/bin/kafka-consumer-groups.sh --bootstrap-server localhost:9092 --describe --group quickbite-live
+curl -s "localhost:9200/_cat/indices/deliveries-live,courier-locations?v&h=index,docs.count"
+docker exec course-kafka /opt/kafka/bin/kafka-consumer-groups.sh --bootstrap-server localhost:9092 --describe --group quickbite-live
 ```
 - `courier-locations` has exactly **30** docs (one per courier, `_id = courier_id`).
 - `deliveries-live` doc count is roughly the number of **orders** (not events). It grows by ~20 per minute.
@@ -544,7 +546,7 @@ Do **TODO 4.2a-e** in `quickbite_transform.py`: `normalize_status`, `to_float_to
 
 Test them without Airflow (fast feedback):
 ```bash
-$ docker compose exec apps pytest -q /tests/test_transform.py --target=student -k "status or total or timestamp or email or city"
+docker compose exec apps pytest -q /tests/test_transform.py --target=student -k "status or total or timestamp or email or city"
 ```
 ✅ **checkpoint:** all selected tests pass.
 
@@ -556,7 +558,7 @@ Do **TODO 4.3** (three places):
 3. `quality_gate()` in the DAG must **return the task_id** to run next; and the `done` task needs `trigger_rule="none_failed_min_one_success"`. Without it, `done` is **skipped** every time (one branch is always skipped, and the default rule `all_success` treats "skipped" as "not success").
 
 ```bash
-$ docker compose exec apps pytest -q /tests/test_transform.py --target=student
+docker compose exec apps pytest -q /tests/test_transform.py --target=student
 ```
 ✅ **checkpoint:** all pass except `test_order_total_coalesces_v3_payment_amount` (that one is for Part 5). `test_seed_expected_numbers` checks the exact numbers of 4.6.
 
@@ -593,8 +595,8 @@ watermark=1970-01-01T00:00:00.000Z  ->  extracted 500 changed orders  ->  new wa
 
 On your laptop:
 ```bash
-$ ls output/gold output/silver output/quarantine
-$ head -3 output/gold/courier_payouts.csv output/gold/restaurant_fees.csv
+ls output/gold output/silver output/quarantine
+head -3 output/gold/courier_payouts.csv output/gold/restaurant_fees.csv
 ```
 ```
 ==> output/gold/courier_payouts.csv <==
@@ -631,8 +633,8 @@ date,restaurant_id,restaurant_name,orders,gross_ils,commission_pct,fee_ils,net_i
 The script tells you only what a "status page" would tell you. Detecting the effect is your job.
 
 ```bash
-$ docker compose exec apps python /chaos/chaos.py status     # what is active
-$ docker compose exec apps python /chaos/chaos.py reset      # back to normal
+docker compose exec apps python /chaos/chaos.py status     # what is active
+docker compose exec apps python /chaos/chaos.py reset      # back to normal
 ```
 
 Make sure the simulators and your consumer are running.
@@ -640,7 +642,7 @@ Make sure the simulators and your consumer are running.
 ### 5.1 `drift` (12 min)
 
 ```bash
-$ docker compose exec apps python /chaos/chaos.py drift
+docker compose exec apps python /chaos/chaos.py drift
 ```
 Wait 2-3 minutes. Look at the dashboard (Late % by city, Late deliveries), Discover on `deliveries-live` (look at the `status` and `total` of the newest docs), and trigger the DAG and read the `transform_to_silver` log.
 
@@ -651,29 +653,29 @@ Compare a new event with an old one in the console consumer (Part 2.1). Two fiel
 
 When you found it, fix it in the code: `normalize_status()` and `event_total()` in `consumer.py`, `order_total()` in `quickbite_transform.py`. Then:
 ```bash
-$ docker compose exec apps pytest -q /tests/test_consumer.py --target=student -m part5
-$ docker compose exec apps pytest -q /tests/test_transform.py --target=student -k v3
+docker compose exec apps pytest -q /tests/test_consumer.py --target=student -m part5
+docker compose exec apps pytest -q /tests/test_transform.py --target=student -k v3
 ```
 ✅ **checkpoint:** `1 passed` for each. Restart the consumer; the new docs look normal again. Trigger the DAG: the gate passes again.
 
 ### 5.2 `duplicates` (8 min)
 
 ```bash
-$ docker compose exec apps python /chaos/chaos.py duplicates
+docker compose exec apps python /chaos/chaos.py duplicates
 ```
 Look at the consumer's console line, the `deliveries-live` doc count, and the **Late deliveries** number. Did anything double? Why not? What would have happened **without** dedupe and **without** `_id = order_id`? Then restart the consumer and run the same mode again: what is different the second time? (Hint: where does `SeenEvents` live?)
 
 ### 5.3 `errors` (8 min)
 
 ```bash
-$ docker compose exec apps python /chaos/chaos.py errors     # lasts 3 minutes
+docker compose exec apps python /chaos/chaos.py errors     # lasts 3 minutes
 ```
 Look at the **Error rate** and **Slowest services** panels and Discover (`level:ERROR`). Which service? What is the p95 latency? Is it only logs, or do orders change too? (Look at `cancel_reason` in `deliveries-live`.) Finance asks: how many orders failed at payment yesterday? Add a `payment_failed` count to `daily_summary()` in `quickbite_transform.py` (see the TODO).
 
 ### 5.4 `late` (12 min)
 
 ```bash
-$ docker compose exec apps python /chaos/chaos.py late       # lasts 5 minutes
+docker compose exec apps python /chaos/chaos.py late       # lasts 5 minutes
 ```
 Look at the map (colour by `state`), and at **Late deliveries** during the 5 minutes and right after. Now look at the open orders: in Discover run `status:picked_up and promised_at < now`, then `status:picked_up and is_late:true`. Why do the two numbers differ? Which one is correct? Fix the consumer so the dashboard is right **during** the incident, not only after orders finally get delivered.
 
@@ -746,6 +748,9 @@ while (true) { if (cs.hasNext()) { const e = cs.next(); print(e.operationType, e
 Something else uses the port, usually a container from an earlier lesson. `docker ps` -> stop it (`docker stop <name>`), or `docker compose down` in that lesson's folder. A local MongoDB / Elasticsearch installation can also hold the port.
 `Conflict. The container name "/mongo" is already in use`: a leftover from the Mongo lesson. `docker rm -f mongo` (removes the container, not your files), then `docker compose up -d` again. Same for `course-kafka`.
 
+**B.1b `docker compose up --build` fails with `SSL: CERTIFICATE_VERIFY_FAILED` during `pip install`**
+Your network inspects HTTPS traffic (common on company laptops with Zscaler/Netskope or a VPN), so containers do not trust its certificate. Build at home or on a personal laptop, or disconnect the VPN and run `docker compose build --no-cache` again.
+
 **B.2 Elasticsearch exits with code 137, or keeps restarting**
 137 = killed for using too much memory. Give Docker more memory (Docker Desktop -> Settings -> Resources -> Memory >= 6 GB), close other apps, `docker compose up -d` again.
 If the log (`docker compose logs elasticsearch`) says `max virtual memory areas vm.max_map_count [65530] is too low`:
@@ -766,7 +771,7 @@ You skipped Part 0.5 step 2. Run section A of `mappings.http` in Dev Tools, then
 **B.6 Re-read Kafka from the beginning (rebuild the ES indices)**
 Stop the consumer first (Ctrl+C), then:
 ```bash
-$ docker exec course-kafka /opt/kafka/bin/kafka-consumer-groups.sh --bootstrap-server localhost:9092 \
+docker exec course-kafka /opt/kafka/bin/kafka-consumer-groups.sh --bootstrap-server localhost:9092 \
     --group quickbite-live --reset-offsets --to-earliest --all-topics --execute
 ```
 
@@ -775,8 +780,8 @@ $ docker exec course-kafka /opt/kafka/bin/kafka-consumer-groups.sh --bootstrap-s
 
 **B.8 Reset everything**
 ```bash
-$ docker compose down -v        # -v deletes ALL data volumes (Mongo, Elasticsearch, Airflow DB)
-$ docker compose up -d --build
+docker compose down -v        # -v deletes ALL data volumes (Mongo, Elasticsearch, Airflow DB)
+docker compose up -d --build
 ```
 then Part 0.4 and 0.5 again. Your code files are not touched. To also delete the Gold CSVs: delete the files inside `output/` (keep `output/.gitkeep`).
 
