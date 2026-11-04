@@ -271,7 +271,9 @@ class OrderApp:
         self.orders.update_one({"order_id": o["order_id"]}, {"$set": update})
 
         event = {
-            "event_id": str(uuid.UUID(int=self.rnd.getrandbits(128), version=4)),
+            # truly random (NOT from the seeded rnd): a restarted simulator must never repeat old event ids,
+            # otherwise a consumer that is still running would drop the new events as "duplicates"
+            "event_id": str(uuid.uuid4()),
             "order_id": o["order_id"],
             "event_type": EVENT_TYPE[state],
             "status": status_value,

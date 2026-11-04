@@ -157,6 +157,7 @@ inserted 20 docs into quickbite.restaurants
 ```
 
 You can re-run this at any time to start Part 1 from a clean dataset (it drops and re-creates the two collections).
+Re-seeding also removes the live orders, so the next live ids start again at `QB-200000`. If you re-seed after Part 2, clear the live index too (Kibana Dev Tools: `DELETE deliveries-live`), otherwise old deliveries stay in Kibana next to the new ones.
 
 ### 0.5 Create the log template, then start the simulators
 
