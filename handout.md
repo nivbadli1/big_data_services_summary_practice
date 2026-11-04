@@ -97,7 +97,7 @@ flowchart LR
 - Docker Desktop (Windows/Mac) or Docker Engine (Linux), with Docker Compose v2 (`docker compose version`).
 - **Memory: give Docker at least 6 GB** (8 GB is comfortable). Docker Desktop -> Settings -> Resources -> Memory. On an 8 GB laptop close Chrome tabs and other heavy apps while you work.
 - About 6 GB of free disk for the images.
-- Free ports: 27017, 9200, 5601, 8080, 29092 (and 9003 if you use Kafdrop). If you still have the Kafka/Mongo lesson containers running, stop them first: `docker ps` and then `docker compose down` in their folders. They use the same container names (`mongo`, `course-kafka`).
+- Free ports: 27017, 9200, 5601, 8080, 29092 (and 9003 if you use Kafdrop). If you still have the Kafka/Mongo lesson containers running, stop them first: `docker ps` and then `docker compose down` in their folders. They use the same container names (`mongo`, `course-kafka`, `elasticsearch`, `kibana`).
 
 ### 0.2 Start everything
 
@@ -746,7 +746,7 @@ while (true) { if (cs.hasNext()) { const e = cs.next(); print(e.operationType, e
 
 **B.1 A port is busy** (`Bind for 0.0.0.0:27017 failed: port is already allocated`)
 Something else uses the port, usually a container from an earlier lesson. `docker ps` -> stop it (`docker stop <name>`), or `docker compose down` in that lesson's folder. A local MongoDB / Elasticsearch installation can also hold the port.
-`Conflict. The container name "/mongo" is already in use`: a leftover from the Mongo lesson. `docker rm -f mongo` (removes the container, not your files), then `docker compose up -d` again. Same for `course-kafka`.
+`Conflict. The container name "/mongo" is already in use`: a leftover from the Mongo lesson. `docker rm -f mongo` (removes the container, not your files), then `docker compose up -d` again. Same for `course-kafka`, `elasticsearch` and `kibana` (leftovers from the ELK lessons). To clear all of them at once: `docker rm -f mongo course-kafka elasticsearch kibana`.
 
 **B.1b `docker compose up --build` fails with `SSL: CERTIFICATE_VERIFY_FAILED` during `pip install`**
 Your network inspects HTTPS traffic (common on company laptops with Zscaler/Netskope or a VPN), so containers do not trust its certificate. Build at home or on a personal laptop, or disconnect the VPN and run `docker compose build --no-cache` again.
