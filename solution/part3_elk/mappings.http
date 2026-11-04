@@ -1,0 +1,233 @@
+# =====================================================================================
+# SOLUTION - Part 3: index templates + queries  (paste into Kibana -> Dev Tools -> Console)
+# =====================================================================================
+# Click a request, then the small "play" button (or Ctrl/Cmd + Enter) to run it.
+#
+# WHY TEMPLATES, AND WHY BEFORE THE DATA ARRIVES?
+#   If you write a document into an index that does not exist, Elasticsearch creates the index
+#   and GUESSES the types ("dynamic mapping"):
+#     - every string becomes `text` (analyzed, for full-text search) + a `.keyword` sub-field
+#       -> aggregations / exact filters on "status" need "status.keyword" - easy to get wrong
+#     - {"lat": 32.08, "lon": 34.78} becomes two plain numbers - NOT a geo_point
+#       -> Kibana Maps cannot draw it
+#     - a date that arrives first as a number (epoch) becomes `long` forever
+#   A mapping can NOT be changed for an existing field. The only fix is: delete the index
+#   (or reindex) and load the data again. So: templates first, data second.
+#   An index TEMPLATE says "any index whose name matches this pattern gets this mapping",
+#   so the index is created with the right types the moment the first document arrives.
+#
+# Field type cheat-sheet:
+#   keyword   exact values you filter / group by (ids, status, city, level)     -> terms agg, KQL status:delivered
+#   text      free text you search inside (log messages)                         -> match query
+#   date      timestamps                                                         -> time picker, date_histogram
+#   boolean   true / false                                                       -> is_late:true
+#   geo_point a lat/lon position                                                 -> Kibana Maps, geo_distance
+# =====================================================================================
+
+
+# -------------------------------------------------------------------------------------
+# A. app-logs  (done in Part 0.5 - the order-app refuses to start without it)
+# -------------------------------------------------------------------------------------
+PUT _index_template/app-logs
+{
+  "index_patterns": ["app-logs*"],
+  "template": {
+    "settings": { "number_of_shards": 1, "number_of_replicas": 0 },
+    "mappings": {
+      "properties": {
+        "@timestamp": { "type": "date" },
+        "level":      { "type": "keyword" },
+        "service":    { "type": "keyword" },
+        "host":       { "type": "keyword" },
+        "order_id":   { "type": "keyword" },
+        "latency_ms": { "type": "integer" },
+        "message":    { "type": "text", "fields": { "keyword": { "type": "keyword", "ignore_above": 256 } } }
+      }
+    }
+  }
+}
+
+
+# -------------------------------------------------------------------------------------
+# B. deliveries-live  (Part 3.1 - BEFORE your consumer writes anything)
+# -------------------------------------------------------------------------------------
+# "dynamic": "true" + a dynamic template: any NEW string field we did not list (schema drift!)
+# becomes a keyword instead of text+keyword. Nothing is rejected, nothing is guessed badly.
+PUT _index_template/deliveries-live
+{
+  "index_patterns": ["deliveries-live*"],
+  "template": {
+    "settings": { "number_of_shards": 1, "number_of_replicas": 0 },
+    "mappings": {
+      "dynamic_templates": [
+        { "strings_as_keyword": { "match_mapping_type": "string", "mapping": { "type": "keyword" } } }
+      ],
+      "properties": {
+        "order_id":           { "type": "keyword" },
+        "status":             { "type": "keyword" },
+        "last_event_type":    { "type": "keyword" },
+        "last_event_ts":      { "type": "date" },
+        "restaurant_id":      { "type": "keyword" },
+        "restaurant_name":    { "type": "keyword" },
+        "city":               { "type": "keyword" },
+        "courier_id":         { "type": "keyword" },
+        "total":              { "type": "double" },
+        "promised_at":        { "type": "date" },
+        "delivered_at":       { "type": "date" },
+        "is_late":            { "type": "boolean" },
+        "minutes_vs_promise": { "type": "float" },
+        "cancel_reason":      { "type": "keyword" },
+        "schema_v":           { "type": "integer" },
+        "indexed_at":         { "type": "date" }
+      }
+    }
+  }
+}
+
+
+# -------------------------------------------------------------------------------------
+# C. courier-locations  (Part 3.1)
+# -------------------------------------------------------------------------------------
+PUT _index_template/courier-locations
+{
+  "index_patterns": ["courier-locations*"],
+  "template": {
+    "settings": { "number_of_shards": 1, "number_of_replicas": 0 },
+    "mappings": {
+      "properties": {
+        "courier_id": { "type": "keyword" },
+        "location":   { "type": "geo_point" },
+        "state":      { "type": "keyword" },
+        "speed_kmh":  { "type": "float" },
+        "ts":         { "type": "date" }
+      }
+    }
+  }
+}
+
+
+# -------------------------------------------------------------------------------------
+# D. daily-summary  (Part 3.1 - written by the Airflow DAG in Part 4)
+# -------------------------------------------------------------------------------------
+PUT _index_template/daily-summary
+{
+  "index_patterns": ["daily-summary*"],
+  "template": {
+    "settings": { "number_of_shards": 1, "number_of_replicas": 0 },
+    "mappings": {
+      "dynamic_templates": [
+        { "strings_as_keyword": { "match_mapping_type": "string", "mapping": { "type": "keyword" } } }
+      ],
+      "properties": {
+        "date":                 { "type": "date", "format": "yyyy-MM-dd" },
+        "orders":               { "type": "integer" },
+        "delivered":            { "type": "integer" },
+        "cancelled":            { "type": "integer" },
+        "late_deliveries":      { "type": "integer" },
+        "late_pct":             { "type": "float" },
+        "avg_delivery_minutes": { "type": "float" },
+        "payment_failed":       { "type": "integer" },
+        "revenue_ils":          { "type": "double" },
+        "fees_ils":             { "type": "double" },
+        "courier_payouts_ils":  { "type": "double" },
+        "run_id":               { "type": "keyword" },
+        "indexed_at":           { "type": "date" }
+      }
+    }
+  }
+}
+
+
+# -------------------------------------------------------------------------------------
+# 3.1 check: all 4 templates exist
+# -------------------------------------------------------------------------------------
+GET _cat/templates/app-logs,deliveries-live,courier-locations,daily-summary?v&h=name,index_patterns
+
+# After data arrived: is the mapping really the one from the template?
+GET courier-locations/_mapping/field/location
+GET deliveries-live/_mapping/field/is_late,status
+
+
+# =====================================================================================
+# 3.2 Query DSL (the JSON language) - run these once the consumer has been running a while
+# =====================================================================================
+
+# a) how many ERROR log lines in the last 15 minutes?  (term = exact match on a keyword)
+GET app-logs/_count
+{
+  "query": {
+    "bool": {
+      "filter": [
+        { "term":  { "level": "ERROR" } },
+        { "range": { "@timestamp": { "gte": "now-15m" } } }
+      ]
+    }
+  }
+}
+
+# b) error count + average latency PER SERVICE (terms aggregation = GROUP BY)
+GET app-logs/_search
+{
+  "size": 0,
+  "query": { "term": { "level": "ERROR" } },
+  "aggs": {
+    "by_service": {
+      "terms": { "field": "service" },
+      "aggs": { "avg_latency": { "avg": { "field": "latency_ms" } } }
+    }
+  }
+}
+
+# c) late deliveries per city
+GET deliveries-live/_search
+{
+  "size": 0,
+  "query": { "bool": { "filter": [
+    { "term": { "status": "delivered" } },
+    { "term": { "is_late": true } }
+  ] } },
+  "aggs": { "by_city": { "terms": { "field": "city" } } }
+}
+
+# d) which couriers are within 2 km of Dizengoff Center right now?  (needs geo_point!)
+GET courier-locations/_search
+{
+  "_source": ["courier_id", "state", "location"],
+  "query": {
+    "geo_distance": { "distance": "2km", "location": { "lat": 32.0753, "lon": 34.7750 } }
+  }
+}
+
+# e) full-text search inside log messages (text field -> match, not term)
+GET app-logs/_search
+{
+  "size": 3,
+  "query": { "match": { "message": "timeout" } },
+  "sort": [ { "@timestamp": "desc" } ]
+}
+
+# f) (after Part 4) the 3 best days by revenue
+GET daily-summary/_search
+{
+  "size": 3,
+  "_source": ["date", "orders", "revenue_ils", "late_pct"],
+  "sort": [ { "revenue_ils": "desc" } ]
+}
+
+# =====================================================================================
+# KQL (the search bar in Discover / dashboards) - the same questions, shorter:
+#   level:ERROR and service:"payment-service"
+#   status:delivered and is_late:true and city:"Tel Aviv"
+#   message:timeout
+#   status:picked_up and promised_at < now          <- open orders that are ALREADY late
+# =====================================================================================
+
+
+# =====================================================================================
+# Fixing a wrong mapping (if you created an index BEFORE its template)
+# =====================================================================================
+# 1. create / fix the template (above)
+# 2. DELETE the index:                 DELETE deliveries-live
+# 3. load the data again: stop the consumer, reset its offsets (handout Appendix B), start it again.
+#    Kafka still has every event, so deliveries-live is rebuilt from scratch. This is one of the
+#    big reasons to keep the events in Kafka: Elasticsearch is a VIEW you can always rebuild.
