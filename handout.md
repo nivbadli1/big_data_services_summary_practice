@@ -545,6 +545,15 @@ Do **TODO 4.1** in `extract_orders`.
 - The **new watermark = the max `updated_at` you actually read**, not `datetime.now()`. With `now()`, a document written between your query and `now()` would be skipped **forever**.
 - The watermark lives in an **Airflow Variable** (`quickbite_watermark`), because the next run (a different process, maybe hours later) must find it.
 
+> **In production you do NOT read from the app's primary.** Here the DAG queries MongoDB directly because this is a lab.
+> In a real company the primary serves the app, and a batch job scanning it every hour competes for the same CPU and RAM
+> (the MongoDB lesson: "copy the data out and analyse elsewhere"). The usual options:
+> 1. **A dedicated analytics secondary** (a hidden replica-set member) and `readPreference=secondary` in the connection string. Our `MONGO_URI` already says `secondaryPreferred` - with one node it falls back to the primary, in production it would not.
+> 2. **CDC**: Change Streams -> Kafka Connector -> lake. No queries on the database at all (Appendix A).
+> 3. **A nightly snapshot / backup** (e.g. to S3) that the pipeline reads instead of the live database.
+>
+> The index on `updated_at` (Part 1.5 bonus) also matters here: without it every hourly extract is a full collection scan.
+
 ### 4.2 The pandas cleaning - your Part 1 list (15 min)
 
 Do **TODO 4.2a-e** in `quickbite_transform.py`: `normalize_status`, `to_float_total`, `to_utc_timestamp`, `coalesce_email`, `normalize_city`. Each docstring says exactly what to do.
@@ -706,6 +715,7 @@ Write a short answer (2-5 sentences) to each. Answers: `solution/part6_reflectio
 6. Your Gold CSV is wrong for 3 October (a bug in the city mapping). How do you **re-process just that day** with this design? What would make it easier?
 7. In the Spark module you will replace pandas. Which functions of `quickbite_transform.py` become which Spark operations? Which part of the DAG does **not** change?
 8. You may run **two** copies of the consumer (same group). What happens with the partitions? Could you run **four**? What decides the maximum useful number?
+9. The DAG queries MongoDB every hour. Why would the app team stop you from doing this against the **production primary**, and what would you do instead? (Hint: Part 4.1.)
 
 ---
 

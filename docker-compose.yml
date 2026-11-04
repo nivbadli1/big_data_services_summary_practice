@@ -155,7 +155,9 @@ services:
       AIRFLOW__WEBSERVER__WORKERS: "2"                   # fewer gunicorn workers = less RAM
       AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "true"
       AIRFLOW__SCHEDULER__DAG_DIR_LIST_INTERVAL: "30"    # see new/changed DAG files within ~30 s
-      MONGO_URI: mongodb://mongo:27017/?directConnection=true
+      # Analytics reads go to a SECONDARY in production, never to the app's primary. Our lab has one node,
+      # so the driver falls back to the primary - the setting shows the intent (handout Part 4.1).
+      MONGO_URI: mongodb://mongo:27017/?directConnection=true&readPreference=secondaryPreferred
       ES_URL: http://elasticsearch:9200
       QUICKBITE_OUTPUT: /opt/airflow/output
     ports:
