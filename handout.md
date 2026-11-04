@@ -798,10 +798,12 @@ then Part 0.4 and 0.5 again. Your code files are not touched. To also delete the
 
 Try first. Then compare - the comments explain **why**, which is the part worth reading.
 
+The consumer and the DAG have **one final solution file each**: the finished code after Part 5. The Part 5 changes are marked with a comment that starts with `Part 5 (...) fix`. If you look at the solution during Part 2 or Part 4, skip those blocks - they are the answers to the incident drill.
+
 | Part | Solution |
 |---|---|
 | 1 | [solution/part1_mongo/explore.js](solution/part1_mongo/explore.js) |
-| 2 | [solution/apps/consumer/consumer.py](solution/apps/consumer/consumer.py) (includes the Part 5 fixes) |
+| 2 | [solution/apps/consumer/consumer.py](solution/apps/consumer/consumer.py) |
 | 3 | [solution/part3_elk/mappings.http](solution/part3_elk/mappings.http), [solution/part3_dashboard_steps.md](solution/part3_dashboard_steps.md) |
 | 4 | [solution/airflow/dags/quickbite_hourly.py](solution/airflow/dags/quickbite_hourly.py), [solution/airflow/dags/quickbite_transform.py](solution/airflow/dags/quickbite_transform.py) |
 | 5 | [solution/part5_chaos_answers.md](solution/part5_chaos_answers.md) |
