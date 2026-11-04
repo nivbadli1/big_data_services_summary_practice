@@ -256,7 +256,7 @@ def safe_json(raw):
 # The main loop
 # =====================================================================================
 def main():
-    from elasticsearch import Elasticsearch, helpers
+    from elasticsearch import Elasticsearch, NotFoundError, helpers
     from kafka import KafkaConsumer
 
     es = Elasticsearch(ES_URL, request_timeout=30)
@@ -283,7 +283,9 @@ def main():
                     res = refresh_stale_late_flags(es)
                     if res.get("updated"):
                         print(f"[consumer] marked {res['updated']} open orders as late (promise passed)")
-                except Exception as e:  # noqa: BLE001 - index may not exist yet on the very first start
+                except NotFoundError:
+                    pass  # normal on the very first start: deliveries-live is created by the first write
+                except Exception as e:  # noqa: BLE001 - never let the refresh kill the consumer
                     print(f"[consumer] late-flag refresh skipped: {e}")
 
             # poll() returns {TopicPartition: [records]} - flatten it into one list
